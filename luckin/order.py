@@ -72,6 +72,15 @@ def run(cfg: dict, dry_run=False, force=False) -> int:
 
     client = api.LuckinClient(token_info, config.load_endpoints(),
                               (cfg.get("api") or {}).get("proxy"))
+    captured = token_info.get("captured_at")
+    if captured:
+        try:
+            age_days = (dt.datetime.now()
+                        - dt.datetime.fromisoformat(str(captured))).days
+            if age_days >= 21:
+                log.warning("token 已抓包 %d 天，可能临近过期，建议抽空重抓一次", age_days)
+        except ValueError:
+            pass
     log.info("拉取菜单和优惠券…")
     try:
         menu_items = api.normalize_menu(

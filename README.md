@@ -1,5 +1,9 @@
 # luckin-autoorder ☕
 
+![CI](https://github.com/michaellu2007/luckin-autoorder/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+
 每周固定那天早上，自动帮你点好一杯瑞幸：从你心仪的饮品清单里选「券后实付最低」的一杯
 （可选按你的个人评分加权随机），下单结果推送到微信，到店扫码取餐即可。
 
@@ -61,6 +65,48 @@ python main.py --run --force       # 手动真实下一单，验证全流程
 所有个人信息（token、推送 key、门店、订单日志、口味评分）都在 `.gitignore` 排除
 范围内，clone 后 fork/修改/上传都不会带出你的隐私。`config.yaml`、`ratings.yaml`
 等请勿手动提交。
+
+## 项目结构
+
+```
+luckin-auto/
+├── main.py                  # 入口：--run / --dry-run / --rate / --status / --capture …
+├── config.example.yaml      # 配置模板（复制为 config.yaml，隐私文件不入库）
+├── capture_token.md         # 抓包教程（首次 & token 过期后照做）
+├── luckin/
+│   ├── api.py               # 瑞幸接口封装（路径以抓包解析出的 endpoints.yaml 为准）
+│   ├── picker.py            # 选品：券后价便宜档内按评分加权随机
+│   ├── order.py             # 下单主流程 + 支付降级 + 幂等锁
+│   ├── capture.py           # 抓包记录解析（token / 门店 / 接口草稿）
+│   ├── config.py            # 配置、凭证、日志
+│   └── notify.py            # Server酱 / PushPlus 微信推送
+├── scripts/
+│   ├── capture_addon.py     # mitmproxy 记录插件
+│   └── register_task.ps1    # 注册 Windows 计划任务（时间自动读 config.yaml）
+└── tests/                   # 单元测试（CI 跑的就是这些）
+```
+
+## 常见问题
+
+- **为什么不能全自动微信支付？** 微信支付必须本人确认，脚本无法代付。全自动支付
+  依赖咖啡钱包余额或免密支付，否则自动降级为推送提醒你点一下付款。
+- **token 多久失效一次？** 因人而异（一般几周到几个月）。失效时推送会提醒你，
+  照 capture_token.md 重抓即可，证书装过一次后流程只需几分钟。
+- **换了常去的门店怎么办？** 重新抓包一次，把解析报告里的新门店 ID 填进 config.yaml。
+- **会不会重复下单？** 不会。当天存在订单锁文件就直接跳过；检查/取消见
+  `logs/order_日期.json`。
+- **电脑周二早上没开机怎么办？** 计划任务配置了开机补跑，当天截止时间（默认 14:00）
+  前开机会自动补；过了就本周跳过，不会下午突兀来一杯。
+
+## 开发
+
+```bash
+python -m unittest discover -s tests   # 单元测试（选品逻辑）
+python main.py --dry-run               # 不花钱的全链路演练（需先抓包）
+```
+
+欢迎 Issue / PR。注意**不要**把 config.yaml、token.yaml、ratings.yaml、logs/
+提交进来（.gitignore 已拦截，写代码时也请别绕过它）。
 
 ## 风险与免责
 

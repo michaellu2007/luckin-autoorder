@@ -1,10 +1,26 @@
-# 注册 Windows 计划任务：每周二自动执行 python main.py --run
+# 注册 Windows 计划任务：每周固定时间自动执行 python main.py --run
 # 用法：PowerShell 里执行  .\register_task.ps1
-# 改了 config.yaml 的 schedule.time/weekday 后重跑一次本脚本即可更新。
+# 时间和星期自动从 config.yaml 的 schedule 段读取，改完配置重跑本脚本即可更新。
 
 $TaskName = "LuckinAutoTuesday"
-$Time     = "08:30"    # 与 config.yaml 的 schedule.time 保持一致
-$Day      = "Tuesday"  # 与 schedule.weekday 保持一致（tue -> Tuesday）
+$Time = "08:30"
+$Day  = "Tuesday"
+
+# 从 config.yaml 读取 schedule.time / schedule.weekday（单一配置源）
+$ConfigPath = Join-Path (Split-Path -Parent $PSScriptRoot) "config.yaml"
+if (Test-Path $ConfigPath) {
+    $Content = Get-Content $ConfigPath -Encoding UTF8
+    if ($Content -match 'time:\s*"?(\d{1,2}:\d{2})"?\s*(#.*)?$') { $Time = $Matches[1] }
+    if ($Content -match 'weekday:\s*(\w{3})') {
+        $Map = @{ mon = "Monday"; tue = "Tuesday"; wed = "Wednesday"
+                  thu = "Thursday"; fri = "Friday"; sat = "Saturday"; sun = "Sunday" }
+        $Key = $Matches[1].ToLower()
+        if ($Map.ContainsKey($Key)) { $Day = $Map[$Key] }
+    }
+}
+else {
+    Write-Warning "找不到 $ConfigPath，使用默认 $Day $Time"
+}
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Python = (Get-Command python -ErrorAction Stop).Source
