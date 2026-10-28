@@ -1,0 +1,31 @@
+# 复制为 config.yaml 再填写。config.yaml 已被 .gitignore 排除，密钥不会被推到 GitHub。
+
+schedule:
+  weekday: tue        # 每周几下单（mon/tue/wed/thu/fri/sat/sun）
+  time: "08:30"       # 计划任务触发时间（改这里后要重跑 scripts/register_task.ps1）
+  deadline: "14:00"   # 当天补跑的最晚时间：错过 08:30（如电脑没开）开机后仍会补，
+                      # 但过了这个点就视为放弃本周，防止下午突兀地冒出一杯咖啡
+
+store:
+  id: ""              # 门店 ID：跑完 --parse-capture 后从 logs/capture_report.md 里找
+  name: ""            # 门店名，仅推送时展示用
+
+drinks:               # 心仪饮品列表，按名称模糊匹配菜单；每次选「券后实付最低」的一杯
+  - 生椰拿铁           # 换成你自己的清单，增删随意
+  - 厚乳拿铁
+  - 冰吸生椰拿铁
+  - 橙C美式
+
+order:
+  use_coupon: true      # 自动挑最划算的券（字段以抓包对齐后为准）
+  selection: balanced   # balanced=便宜档内按评分加权随机（喝完打分：--rate 饮品名 分数）；cheap=纯选最便宜
+  price_tolerance: 1.0  # balanced 模式：比最低实付贵多少元以内算「同档便宜」
+
+notify:
+  channel: serverchan     # serverchan | pushplus | none
+  serverchan_sendkey: ""  # https://sct.ftqq.com 登录后生成
+  pushplus_token: ""      # https://www.pushplus.plus 登录后生成
+  proxy: ""               # 推送服务国内直连即可，一般留空
+
+api:
+  proxy: ""               # 访问瑞幸接口的代理，一般留空

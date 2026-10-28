@@ -1,0 +1,4 @@
+requests>=2.28
+PyYAML>=6.0
+# 仅抓包时需要（main.py --capture 调用 mitmdump）
+mitmproxy>=9.0
