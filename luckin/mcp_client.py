@@ -62,7 +62,10 @@ class LuckinMcp:
         })
         self.session.headers.update(
             {"Mcp-Session-Id": r.get("result", {}).get("sessionId", "")})
-        self._rpc("notifications/initialized")
+        try:
+            self._rpc("notifications/initialized")
+        except Exception:
+            pass  # 通知类消息部分服务端返回 202/空体，不视为错误
         self._initialized = True
 
     def list_tools(self) -> list:
@@ -89,8 +92,8 @@ class LuckinMcp:
     def query_shop_list(self, **kw):
         return self.call("queryShopList", kw)
 
-    def search_product(self, keyword: str, **kw):
-        return self.call("searchProductForMcp", {"keyword": keyword, **kw})
+    def search_product(self, query: str, **kw):
+        return self.call("searchProductForMcp", {"query": query, **kw})
 
     def product_detail(self, **kw):
         return self.call("queryProductDetailInfo", kw)
