@@ -42,12 +42,22 @@ def main():
     ratings = legacy_picker.load_ratings()
 
     print(f"[{time.strftime('%H:%M:%S')}] 门店 {dept_id}，开始选品决策…", flush=True)
-    choice, notes = picker_mcp.decide(mcp, dept_id, cfg, ratings)
+    choice, notes, report = picker_mcp.decide(mcp, dept_id, cfg, ratings)
     for n in notes:
         print("  ·", n, flush=True)
 
-    if choice is None:
+    if not report:
         print("\n结论：这期没有值得买的，下周再战 ☕")
+        return 0
+
+    print("\n决策报告（三方：价格规则 × 复购画像 × 你的评分）：", flush=True)
+    for r in sorted(report, key=lambda x: (not x["winner"], x["price"])):
+        mark = "🏆" if r["winner"] else "  "
+        print(f" {mark}{r['name']}  ¥{r['price']}（原价 {r['init']}）"
+              f" | {r['family']}·复购{r['freq']}次 | 评分{r['rating']} | 权重{r['weight']}"
+              f" | {r['verdict']}", flush=True)
+
+    if choice is None:
         return 0
 
     print(f"\n>>> 决策：{choice['name']} ¥{choice['price']}"

@@ -132,28 +132,46 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
             notes.append(f"「{kw}」搜索到 {len(items)} 个，入池 {max(0, len([p for p in pool if kw in p['source']]))} 个")
 
     if not pool:
-        return None, notes
+        return None, notes, []
 
-    # 3. 选品：最低价优先，同价（±0.2）按评分加权随机
+    # 3. 选品：最低价优先，同价（±0.2）按 评分×复购 加权随机；全部候选输出透明报告
+    profile = history_profile()
+    max_freq = max(profile.values()) if profile else 1
     cheapest = min(p["price"] for p in pool)
     near = [p for p in pool if p["price"] <= cheapest + 0.2]
+    report = []
+    for p in sorted(pool, key=lambda x: x["price"]):
+        fam = _family(p["name"])
+        freq = profile.get(fam, 0)
+        rating = max(0.5, float(ratings.get(_norm_key(p["name"]), 3.0)))
+        h_score = 1.0 + (freq / max_freq if max_freq else 0)
+        weight = round(rating * h_score, 2)
+        if p["price"] > cheapest + 0.2:
+            verdict = f"贵 {(p['price'] - cheapest):.2f} 元，未选"
+        elif len(near) > 1:
+            verdict = "同价档参与加权抽选"
+        else:
+            verdict = "最低价，直接胜出"
+        report.append({"name": p["name"], "price": p["price"], "init": p["init"],
+                       "source": p["source"], "family": fam, "freq": freq,
+                       "rating": rating, "weight": weight, "verdict": verdict,
+                       "winner": p is near[0] or p in near})
+    for r in report:
+        r["winner"] = r["name"] == choice_name if (choice_name := None) else r["winner"]
     if len(near) == 1:
         choice = near[0]
     else:
-        profile = history_profile()
-        max_freq = max(profile.values()) if profile else 1
         weights = []
         for p in near:
             r_score = max(0.5, float(ratings.get(_norm_key(p["name"]), 3.0)))
-            fam = _family(p["name"])
-            freq = profile.get(fam, 0)
-            # 复购偏好：买过越多次权重越高（1 + 频次/最大频次）
-            h_score = 1.0 + (freq / max_freq if max_freq else 0)
-            weights.append(r_score * h_score)
+            freq = profile.get(_family(p["name"]), 0)
+            weights.append(r_score * (1.0 + (freq / max_freq if max_freq else 0)))
         choice = random.choices(near, weights=weights, k=1)[0]
         names = "、".join(f"{p['name']}({p['price']})" for p in near)
         notes.append(f"同价档 {names}，按 评分×历史复购 加权随机（画像：{profile}）")
-    return choice, notes
+    for r in report:
+        r["winner"] = r["name"] == choice["name"]
+    return choice, notes, report
 
 
 def _norm_key(name: str) -> str:
