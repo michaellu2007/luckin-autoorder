@@ -9,6 +9,17 @@ schedule:
 # 官方 MCP Token（推荐路线）：open.lkcoffee.com 登录后复制
 mcp_token: ""
 
+# 价格决策规则（选品引擎 v2）
+price_rules:
+  default_max: 10.9      # 常规款上限：优惠后超过这个数就放弃（如 11 元的澳白不买）
+  deal_max: 9.0          # 惊喜价：低于这个数闭眼买（如 8 块的澳白）
+  new_product_max: 12.9  # 一口价/新品尝鲜上限
+
+# 门店定位（createOrder 需要，复旦叶耀珍楼一带）
+location:
+  longitude: 121.5035
+  latitude: 31.2989
+
 store:
   id: ""              # 门店 ID：跑完 --parse-capture 后从 logs/capture_report.md 里找
   name: ""            # 门店名，仅推送时展示用
