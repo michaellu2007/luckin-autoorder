@@ -4,6 +4,7 @@
   python scripts/mcp_order.py          真实下单（价格规则通过才买）
 """
 
+import datetime
 import json
 import pathlib
 import sys
@@ -15,6 +16,14 @@ sys.path.insert(0, str(ROOT))
 from luckin import picker as legacy_picker
 from luckin import picker_mcp
 from luckin.mcp_client import LuckinMcp
+
+
+def compute_pay_deadline(class_time: str, walk_min: int, make_min: int):
+    """付款截止 = 上课 - 路程 - 制作：咖啡做好拿着走到教室刚好上课。"""
+    now = datetime.datetime.now()
+    h, m = map(int, class_time.split(":"))
+    cls = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    return now, cls - datetime.timedelta(minutes=walk_min + make_min)
 
 
 def main():
@@ -42,6 +51,19 @@ def main():
         print("[DRY] 不下单。去掉 --dry 执行真实下单。")
         return 0
 
+    # 时机计算：拿到咖啡走到教室刚好上课
+    sched = cfg.get("schedule") or {}
+    class_time = str(sched.get("class_time", "09:55"))
+    walk_min = int(sched.get("walk_minutes", 6))
+    make_min = int(sched.get("make_minutes", 12))
+    now, pay_deadline = compute_pay_deadline(class_time, walk_min, make_min)
+    if now < pay_deadline - datetime.timedelta(minutes=1):
+        wait_s = int((pay_deadline - now).total_seconds())
+        print(f"上课 {class_time}；最佳下单时刻 {pay_deadline:%H:%M}（付款后约 {make_min} 分钟"
+              f"做好，留 {walk_min} 分钟走路）。等待 {wait_s} 秒…", flush=True)
+        time.sleep(wait_s)
+    print(f"[{time.strftime('%H:%M:%S')}] 到点，下单（请立即付款）", flush=True)
+
     pv = mcp.preview_order(deptId=dept_id,
                            productList=[{"productId": choice["productId"],
                                          "skuCode": choice["skuCode"], "amount": 1}])
@@ -66,7 +88,7 @@ def main():
         try:
             from luckin.notify import send
             send(f"瑞幸下单成功：{choice['name']} ¥{final_price}",
-                 "请到小程序完成支付并查取餐码。", cfg)
+                 f"现在付款！约 {make_min} 分钟做好，留 {walk_min} 分钟走路，掐点取餐上课。", cfg)
         except Exception:
             pass
         return 0

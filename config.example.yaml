@@ -10,6 +10,13 @@ schedule:
 mcp_token: ""
 
 # 价格决策规则（选品引擎 v2）
+# 时机（拿到咖啡走到教室刚好上课）
+schedule:
+  class_time: "09:55"    # 上课时间
+  walk_minutes: 6        # 拿咖啡走到教室
+  make_minutes: 12       # 付款后制作时长
+
+# 上课时间驱动的下单时机
 price_rules:
   default_max: 10.9      # 常规款上限：优惠后超过这个数就放弃（如 11 元的澳白不买）
   deal_max: 9.0          # 惊喜价：低于这个数闭眼买（如 8 块的澳白）
