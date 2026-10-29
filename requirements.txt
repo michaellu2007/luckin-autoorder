@@ -1,4 +1,5 @@
 requests>=2.28
 PyYAML>=6.0
+websocket-client>=1.6  # CDP 脚本（capture_order_flow 等）需要
 # 仅抓包时需要（main.py --capture 调用 mitmdump）
 mitmproxy>=9.0
