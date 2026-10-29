@@ -32,6 +32,11 @@ def main():
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     store = cfg.get("store") or {}
     dept_id = int(store.get("id") or 345726)
+    # 硬性保险：只允许在叶耀珍楼店（345726）下单，配置错了一律拒绝执行
+    if dept_id != 345726:
+        print(f"⛔ 门店 {dept_id} 不是叶耀珍楼店（345726），拒绝下单。"
+              "如确需换店，请手动修改 scripts/mcp_order.py 的保险检查。")
+        return 1
     loc = cfg.get("location") or {}
     mcp = LuckinMcp(cfg["mcp_token"], proxy=(cfg.get("api") or {}).get("proxy") or "")
     ratings = legacy_picker.load_ratings()
