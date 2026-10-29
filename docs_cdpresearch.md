@@ -69,3 +69,37 @@
 ### 红线
 
 全程只读。未下单、未支付、未调用任何写接口。wx.request 包装仅记录，不影响行为。
+
+
+## 2026-10-29 追加：纯 JS 下单链路 90% 打通
+
+### 已确认的完整链路（源码级）
+
+1. **菜单加购**：menu 页 `addProductHandler(e)`（多规格 → `productDetail` 服务预取 +
+   跳详情页；单规格 → store 直接加购）。事件：`{detail:{ckType:'2', pageFrom:'menu',
+   product:<商品对象>, kind:{kindId}, index:0}}`
+2. **详情页加购**：`page.addShoppingCartForDetail()`（无参，读自身 data.product），
+   内部构造 prod={productId, skuCode, amount:productAmount, eatway, maxAmount,
+   processTypeDetailList, transmission, discountPrice, initialPrice, itemFromLocation}
+   → `store.addProduct({prod, cartType:'cart'})`，返回 false 即静默失败。
+3. **确认页**：`wx.navigateTo('/pages/order/confirm/confirm?cartType=cart')`，
+   购物车数据经 `v2/product/shoppingCart` 试算。确认页实例方法：
+   - `browseCheckout()` → preCreate(距离校验) → `createOrder(payload)`
+   - createOrder payload：`{...submitOf600, productList, deptId, delivery,
+     paymentAccountType:1, blackBox, wxScene, ...}`
+   - 成功 code 1 → `content.orderId` + forwardPage='pay' → `payOrder(orderId)`
+   - `payOrder` → `/v2/pay/topay`，`payItem.payType` + `canQuickPay`（免密）自动扣款
+4. **澳白**：productId=4807，commodityCode=SP3227，门店 skuCode 由 productDetail
+   服务返回（本次 SP3227-01187 大杯/热）。
+
+### 卡点（唯一）
+
+`store.addProduct` 的所属模块和返回 false 的条件未定位（所有 store/* 模块均无此方法，
+疑似在未下载的模块或特殊导出形式）。因此纯 JS 加购尚未成功过——cartMap/CART 存储
+始终为空，确认页拿不到商品。
+
+### 解锁方式（二选一）
+
+A. 跑 scripts/capture_order_flow.py 后手动正常下一单 → 抓到 cart/add 与
+   order/create 的真实报文 → 补齐最后一块。
+B. 继续源码定位 addProduct 定义（全局 Proxy 钩 menuList.setData 或逐 chunk 调试）。
