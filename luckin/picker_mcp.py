@@ -16,6 +16,53 @@ import random
 
 from .mcp_client import LuckinMcp
 
+ROOT = None  # 延迟解析，避免循环导入
+
+
+def _root():
+    global ROOT
+    if ROOT is None:
+        from . import config
+        ROOT = config.ROOT
+    return ROOT
+
+
+def history_profile() -> dict:
+    """从订单历史算口味画像：{家族: 购买次数}。文件不存在返回空。"""
+    import json
+    root = _root()
+    for f in ("logs/orders_full.json", "logs/orders_20261029.json"):
+        path = root / f
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        flat = [o for grp in data for o in (grp if isinstance(grp, list) else [grp])]
+        done = [o for o in flat if o.get("orderStatusCode") in (80, 92)]
+        fam = {}
+        for o in done:
+            n = str(o.get("goodsName", ""))
+            key = None
+            if "埃塞" in n: key = "埃塞金烘系列"
+            elif "瑰夏" in n: key = "瑰夏冷萃系列"
+            elif "生椰" in n: key = "生椰拿铁"
+            elif "美式" in n or "冷萃" in n: key = "美式冷萃类"
+            else: key = "尝鲜新品"
+            fam[key] = fam.get(key, 0) + 1
+        return fam
+    return {}
+
+
+def _family(name: str) -> str:
+    n = str(name)
+    if "埃塞" in n: return "埃塞金烘系列"
+    if "瑰夏" in n: return "瑰夏冷萃系列"
+    if "生椰" in n: return "生椰拿铁"
+    if "美式" in n or "冷萃" in n: return "美式冷萃类"
+    return "尝鲜新品"
+
 
 def _norm(s) -> str:
     return str(s).replace(" ", "").lower()
@@ -93,10 +140,19 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
     if len(near) == 1:
         choice = near[0]
     else:
-        weights = [max(0.5, float(ratings.get(_norm_key(p["name"]), 3.0))) for p in near]
+        profile = history_profile()
+        max_freq = max(profile.values()) if profile else 1
+        weights = []
+        for p in near:
+            r_score = max(0.5, float(ratings.get(_norm_key(p["name"]), 3.0)))
+            fam = _family(p["name"])
+            freq = profile.get(fam, 0)
+            # 复购偏好：买过越多次权重越高（1 + 频次/最大频次）
+            h_score = 1.0 + (freq / max_freq if max_freq else 0)
+            weights.append(r_score * h_score)
         choice = random.choices(near, weights=weights, k=1)[0]
         names = "、".join(f"{p['name']}({p['price']})" for p in near)
-        notes.append(f"同价档 {names}，按评分加权随机")
+        notes.append(f"同价档 {names}，按 评分×历史复购 加权随机（画像：{profile}）")
     return choice, notes
 
 

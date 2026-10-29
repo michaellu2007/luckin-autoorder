@@ -103,3 +103,16 @@
 A. 跑 scripts/capture_order_flow.py 后手动正常下一单 → 抓到 cart/add 与
    order/create 的真实报文 → 补齐最后一块。
 B. 继续源码定位 addProduct 定义（全局 Proxy 钩 menuList.setData 或逐 chunk 调试）。
+
+
+## 2026-10-30 凌晨：全量订单到手 + 决策引擎接入完整画像
+
+- `handleNextMonth()` 翻月后发现 hasNext 语义是「下一年同月」；一次翻月加载全年
+- **83 单（75 有效）**，2025-09-09 ~ 2026-10-27，存 logs/orders_full.json
+- 完整画像：美式类 33 次(均价10.97) > 其他拿铁 17 > 生椰拿铁 12 > 埃塞金烘 5 >
+  瑰夏冷萃 4 > 尝鲜 4；最高接受单价 22.8；周均 1.3 杯
+- picker_mcp 已融合历史复购权重（评分 × 复购频率），读 orders_full.json 自动生效
+- 决策实测（实时价）：埃塞金烘拿铁 11.1 > 上限 10.9 正确淘汰 → 选生椰拿铁 9.9
+- 时机引擎：schedule.class_time/walk_minutes/make_minutes 反推付款截止
+  （9:55 - 6 - 12 = 09:37 付款），任务脚本内部睡到点再下单
+- 明早注册任务：register_mcp_task.ps1 -Once -At "2026-10-30 09:00"（用户在自己的终端跑）
