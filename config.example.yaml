@@ -6,6 +6,9 @@ schedule:
   deadline: "14:00"   # 当天补跑的最晚时间：错过 08:30（如电脑没开）开机后仍会补，
                       # 但过了这个点就视为放弃本周，防止下午突兀地冒出一杯咖啡
 
+# 官方 MCP Token（推荐路线）：open.lkcoffee.com 登录后复制
+mcp_token: ""
+
 store:
   id: ""              # 门店 ID：跑完 --parse-capture 后从 logs/capture_report.md 里找
   name: ""            # 门店名，仅推送时展示用
