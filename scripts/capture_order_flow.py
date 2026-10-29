@@ -20,7 +20,7 @@ import websocket
 ROOT = Path(__file__).resolve().parent.parent
 DEBUGGER_DIR = ROOT.parent / "WMPFDebugger"
 CDP = "ws://127.0.0.1:62000"
-WATCH = ("order", "pay", "cashier")          # 检测到这些关键词即认为下单完成
+WATCH = ("v1/order/create", "v2/pay/topay")          # 检测到这些关键词即认为下单完成
 TIMEOUT_MIN = 40                              # 最长等待下单的时间
 
 
@@ -232,8 +232,7 @@ def main():
             ws.close()
         except Exception:
             pass
-        if proc:
-            proc.terminate()
+        # 调试器保持运行，供后续轮询使用
     log("超时未等到下单，退出。")
 
 
