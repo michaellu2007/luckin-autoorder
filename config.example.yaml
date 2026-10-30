@@ -48,5 +48,12 @@ notify:
   pushplus_token: ""      # https://www.pushplus.plus 登录后生成
   proxy: ""               # 推送服务国内直连即可，一般留空
 
+  email:                   # 邮件通知（推荐，能带支付链接）
+    smtp_host: smtp.qq.com  # QQ邮箱用 smtp.qq.com；163 用 smtp.163.com
+    smtp_port: 465
+    from_addr: ""           # 你的邮箱
+    auth_code: ""           # SMTP 授权码（邮箱设置里生成，不是登录密码！）
+    to_addr: ""             # 收件邮箱（留空=发给自己）
+
 api:
   proxy: ""               # 访问瑞幸接口的代理，一般留空
