@@ -181,7 +181,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
             init = float(it.get("initialPrice", 0))
             if price > new_max:
                 continue
-            if avoid_days and any(str(o.get("goodsName","")) == name for o in recent_names):
+            if avoid_days and any(n == name for n in recent_names):
                 notes.append(f"新品「{name}」最近喝过同款，跳过")
                 continue
             pool.append({"name": name, "productId": pid,
