@@ -82,6 +82,18 @@ def history_sku_map() -> dict:
     return {"sku": sku, "recent_family": recent}
 
 
+COFFEE_WORDS = ("拿铁", "美式", "咖啡", "浓缩", "澳瑞白", "澳白", "冷萃", "SOE", "soe")
+NOT_COFFEE_WORDS = ("盒", "组", "周边", "挂耳", "冻干", "茶", "甘露", "米酿",
+                    "山楂", "奶茶", "果茶", "柠檬", "葡萄", "杨梅", "优酪", "轻乳")
+
+
+def is_coffee(name: str) -> bool:
+    n = str(name)
+    if any(w in n for w in NOT_COFFEE_WORDS):
+        return False
+    return any(w in n for w in COFFEE_WORDS)
+
+
 def _family(name: str) -> str:
     n = str(name)
     if "埃塞" in n: return "埃塞金烘系列"
@@ -141,7 +153,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
 
     # 1. 常规候选
     for drink in drinks:
-        items = _search_all(mcp, dept_id, drink)
+        items = [x for x in _search_all(mcp, dept_id, drink) if is_coffee(x.get("productName", ""))]
         if not items:
             notes.append(f"「{drink}」门店没有匹配商品")
             continue
@@ -175,7 +187,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
         known = {p["productId"] for p in pool}
         for it in items:
             pid = int(it.get("productId", 0))
-            if pid in known or pid == 0:
+            if pid in known or pid == 0 or not is_coffee(it.get("productName", "")):
                 continue
             name = it.get("productName", "")
             price = float(it.get("estimatePrice", 999))
