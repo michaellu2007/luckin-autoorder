@@ -55,6 +55,20 @@ def history_profile() -> dict:
     return {}
 
 
+def tried_names() -> set:
+    """历史里出现过的所有商品名：新品只试一次，喝过绝不再点。"""
+    import json
+    path = _root() / "logs" / "orders_full.json"
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    flat = [o for grp in data for o in (grp if isinstance(grp, list) else [grp])]
+    return {str(o.get("goodsName") or "") for o in flat}
+
+
 def history_sku_map() -> dict:
     """{商品名(精确): 最近一次下单的 skuCode}——用你亲测过的规格，而非默认规格。"""
     import json
@@ -133,13 +147,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
     sku_map = hist.get("sku", {})
     recent_fam = hist.get("recent_family", {})
     import json as _json
-    try:
-        _data = _json.loads(( _root() / "logs" / "orders_full.json").read_text(encoding="utf-8"))
-        _flat = [o for grp in _data for o in (grp if isinstance(grp, list) else [grp])]
-        _flat.sort(key=lambda o: o.get("orderTime") or "", reverse=True)
-        recent_names = [str(o.get("goodsName") or "") for o in _flat[:12]]
-    except Exception:
-        recent_names = []
+    recent_names = tried_names()
     import datetime as _dt
     avoid_days = int((cfg.get("avoid_repeat_days") or 0))
     today = _dt.date.today()
