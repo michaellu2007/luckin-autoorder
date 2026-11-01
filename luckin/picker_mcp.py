@@ -55,6 +55,33 @@ def history_profile() -> dict:
     return {}
 
 
+def history_sku_map() -> dict:
+    """{商品名(精确): 最近一次下单的 skuCode}——用你亲测过的规格，而非默认规格。"""
+    import json
+    root = _root()
+    path = root / "logs" / "orders_full.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    flat = [o for grp in data for o in (grp if isinstance(grp, list) else [grp])]
+    flat.sort(key=lambda o: o.get("orderTime") or "", reverse=True)
+    sku = {}
+    recent = {}  # 家族 -> 最近一次 orderTime (ISO 字符串可直接比较)
+    for o in flat:
+        item = (o.get("productList") or [{}])[0]
+        name = str(o.get("goodsName", ""))
+        code, t = item.get("skuCode"), o.get("orderTime") or ""
+        if name and code and name not in sku:
+            sku[name] = code
+        f = _family(name)
+        if f and (f not in recent or t > recent[f]):
+            recent[f] = t
+    return {"sku": sku, "recent_family": recent}
+
+
 def _family(name: str) -> str:
     n = str(name)
     if "埃塞" in n: return "埃塞金烘系列"
@@ -90,6 +117,26 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
 
     notes = []
     pool = []  # {name, productId, skuCode, price, source}
+    hist = history_sku_map()
+    sku_map = hist.get("sku", {})
+    recent_fam = hist.get("recent_family", {})
+    import json as _json
+    try:
+        _data = _json.loads(( _root() / "logs" / "orders_full.json").read_text(encoding="utf-8"))
+        _flat = [o for grp in _data for o in (grp if isinstance(grp, list) else [grp])]
+        _flat.sort(key=lambda o: o.get("orderTime") or "", reverse=True)
+        recent_names = [o.get("goodsName") for o in _flat[:12]]
+    except Exception:
+        recent_names = []
+    import datetime as _dt
+    avoid_days = int((cfg.get("avoid_repeat_days") or 0))
+    today = _dt.date.today()
+    recent_fam_days = {}
+    for f, t in recent_fam.items():
+        try:
+            recent_fam_days[f] = (today - _dt.date.fromisoformat(t[:10])).days
+        except Exception:
+            recent_fam_days[f] = 999
 
     # 1. 常规候选
     for drink in drinks:
@@ -105,11 +152,21 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
         if price > default_max:
             notes.append(f"「{name}」{price} 元 > 上限 {default_max}，放弃")
             continue
+        fam = _family(name)
+        days = recent_fam_days.get(fam, 999)
+        if avoid_days and days <= avoid_days:
+            notes.append(f"「{name}」{fam} {days} 天前刚喝过（防重复期 {avoid_days} 天），跳过")
+            continue
+        # 规格：优先用你历史上喝过的 skuCode（冰/热/豆子/杯型都是你亲测的），并保证不是超大杯
+        sku = sku_map.get(name, "") or _first_sku(best)
+        if "超大杯" in sku and "大杯" in str(sku):
+            pass  # skuCode 无法看规格字符串时由服务端按默认；历史 sku 本身来自你的真实订单
         tag = "惊喜价⚡" if price <= deal_max else "常规价"
         pool.append({"name": name, "productId": int(best.get("productId")),
-                     "skuCode": _first_sku(best), "price": price,
+                     "skuCode": sku, "price": price,
                      "init": init, "source": f"候选清单·{tag}"})
-        notes.append(f"「{name}」优惠后 {price} 元（原价 {init}）→ {tag}")
+        spec_note = "（规格=你历史喝过的）" if sku_map.get(name) else ""
+        notes.append(f"「{name}」优惠后 {price} 元（原价 {init}）→ {tag}{spec_note}")
 
     # 2. 一口价/新品
     for kw in ("一口价", "新品"):
@@ -123,6 +180,9 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
             price = float(it.get("estimatePrice", 999))
             init = float(it.get("initialPrice", 0))
             if price > new_max:
+                continue
+            if avoid_days and any(str(o.get("goodsName","")) == name for o in recent_names):
+                notes.append(f"新品「{name}」最近喝过同款，跳过")
                 continue
             pool.append({"name": name, "productId": pid,
                          "skuCode": _first_sku(it), "price": price,
