@@ -113,6 +113,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
     default_max = float(rules.get("default_max", 10.9))
     deal_max = float(rules.get("deal_max", 9.0))
     new_max = float(rules.get("new_product_max", 12.9))
+    novelty_chance = float(rules.get("novelty_chance", 0.3))
     drinks = cfg.get("drinks") or []
 
     notes = []
@@ -194,7 +195,12 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
     if not pool:
         return None, notes, []
 
-    # 3. 选品：最低价优先，同价（±0.2）按 评分×复购 加权随机；全部候选输出透明报告
+    # 3. 选品：novelty_chance 概率进入尝鲜模式（只在一口价/新品里挑），否则最低价+加权
+    new_pool = [p for p in pool if ("一口价" in p["source"] or "新品" in p["source"])]
+    novelty_mode = bool(new_pool) and random.random() < novelty_chance
+    if novelty_mode:
+        notes.append(f"🎲 触发尝鲜模式（概率 {int(novelty_chance*100)}%）：从 {len(new_pool)} 个一口价/新品里选")
+        pool = new_pool
     profile = history_profile()
     max_freq = max(profile.values()) if profile else 1
     cheapest = min(p["price"] for p in pool)
