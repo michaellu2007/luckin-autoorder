@@ -125,7 +125,7 @@ def decide(mcp: LuckinMcp, dept_id: int, cfg: dict, ratings: dict) -> tuple:
         _data = _json.loads(( _root() / "logs" / "orders_full.json").read_text(encoding="utf-8"))
         _flat = [o for grp in _data for o in (grp if isinstance(grp, list) else [grp])]
         _flat.sort(key=lambda o: o.get("orderTime") or "", reverse=True)
-        recent_names = [o.get("goodsName") for o in _flat[:12]]
+        recent_names = [str(o.get("goodsName") or "") for o in _flat[:12]]
     except Exception:
         recent_names = []
     import datetime as _dt
