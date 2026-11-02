@@ -49,7 +49,10 @@ def main():
     processed = load_processed()
     mail = imaplib.IMAP4_SSL("imap.163.com", 993)
     mail.login(addr, code)
-    mail.select("INBOX", readonly=True)
+    # 163 邮箱要求 IMAP 客户端先发 ID 命令，否则 SELECT 报 Unsafe Login
+    imaplib.Commands["ID"] = ("AUTH", "SELECTED")
+    mail._simple_command("ID", '("name" "luckin-autoorder" "version" "1.0.0")')
+    mail.select("INBOX")
     typ, data = mail.search(None, f'(FROM "{student}")')
     ids = data[0].split()
     new_msgs = [i for i in ids if i.decode() not in processed]

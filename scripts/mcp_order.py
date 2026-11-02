@@ -42,6 +42,30 @@ def main():
     ratings = legacy_picker.load_ratings()
 
     print(f"[{time.strftime('%H:%M:%S')}] 门店 {dept_id}，开始选品决策…", flush=True)
+
+    # --wait-until HH:MM：整夜挂机模式——先睡到明早再决策（保证价格/券是最新的）
+    wait_until = None
+    for a in sys.argv:
+        if a.startswith("--wait-until="):
+            wait_until = a.split("=", 1)[1]
+    if wait_until:
+        h, m = map(int, wait_until.split(":"))
+        now = datetime.datetime.now()
+        target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if target < now:
+            target += datetime.timedelta(days=1)
+        wait_s = int((target - now).total_seconds())
+        print(f"挂机模式：睡到 {target:%m-%d %H:%M} 再决策下单（{wait_s} 秒）。"
+              "本窗口请保持开着，电脑不要睡眠。", flush=True)
+        # 分段睡，每 10 分钟报一次平安
+        while wait_s > 0:
+            chunk = min(wait_s, 600)
+            time.sleep(chunk)
+            wait_s -= chunk
+            if wait_s > 0:
+                print(f"[{time.strftime('%H:%M:%S')}] 挂机中… 还剩 {wait_s//60} 分钟", flush=True)
+        print(f"[{time.strftime('%H:%M:%S')}] 到点！", flush=True)
+
     choice, notes, report = picker_mcp.decide(mcp, dept_id, cfg, ratings)
     for n in notes:
         print("  ·", n, flush=True)
@@ -72,7 +96,9 @@ def main():
     walk_min = int(sched.get("walk_minutes", 6))
     make_min = int(sched.get("make_minutes", 12))
     now, pay_deadline = compute_pay_deadline(class_time, walk_min, make_min)
-    if now < pay_deadline - datetime.timedelta(minutes=1):
+    if wait_until:
+        print("（--wait-until 已指定下单时刻，跳过自动等待）", flush=True)
+    elif now < pay_deadline - datetime.timedelta(minutes=1):
         wait_s = int((pay_deadline - now).total_seconds())
         print(f"上课 {class_time}；最佳下单时刻 {pay_deadline:%H:%M}（付款后约 {make_min} 分钟"
               f"做好，留 {walk_min} 分钟走路）。等待 {wait_s} 秒…", flush=True)
