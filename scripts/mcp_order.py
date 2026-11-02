@@ -56,15 +56,22 @@ def main():
             target += datetime.timedelta(days=1)
         wait_s = int((target - now).total_seconds())
         print(f"挂机模式：睡到 {target:%m-%d %H:%M} 再决策下单（{wait_s} 秒）。"
-              "本窗口请保持开着，电脑不要睡眠。", flush=True)
-        # 分段睡，每 10 分钟报一次平安
+              "本窗口请保持开着，电脑不要睡眠。心跳每 30 秒打印并写入 logs/standby.log。",
+              flush=True)
+        log_f = open(ROOT / "logs" / "standby.log", "a", encoding="utf-8")
+        def beat(msg):
+            line = f"[{time.strftime('%m-%d %H:%M:%S')}] {msg}"
+            print(line, flush=True)
+            log_f.write(line + chr(10))
+            log_f.flush()
+        beat(f"挂机开始，目标 {target:%H:%M}，共 {wait_s} 秒")
         while wait_s > 0:
-            chunk = min(wait_s, 600)
-            time.sleep(chunk)
-            wait_s -= chunk
+            time.sleep(min(wait_s, 30))
+            wait_s -= min(wait_s, 30)
             if wait_s > 0:
-                print(f"[{time.strftime('%H:%M:%S')}] 挂机中… 还剩 {wait_s//60} 分钟", flush=True)
-        print(f"[{time.strftime('%H:%M:%S')}] 到点！", flush=True)
+                beat(f"挂机中… 剩余 {wait_s//60} 分 {wait_s%60} 秒（程序存活，未卡死）")
+        beat("到点！开始决策下单")
+        log_f.close()
 
     choice, notes, report = picker_mcp.decide(mcp, dept_id, cfg, ratings)
     for n in notes:
