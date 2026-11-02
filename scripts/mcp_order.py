@@ -102,8 +102,11 @@ def main():
         print("\n✅ 下单成功。到瑞幸小程序「我的订单」付款（免密/钱包），取餐码见订单详情。")
         try:
             from luckin.notify import send
-            send(f"瑞幸下单成功：{choice['name']} ¥{final_price}",
-                 f"现在付款！约 {make_min} 分钟做好，留 {walk_min} 分钟走路，掐点取餐上课。", cfg)
+            body = (f"现在付款！约 {make_min} 分钟做好，留 {walk_min} 分钟走路，掐点取餐上课。"
+                    "\n\n喝完记得评分（1~5 分，影响以后选品）："
+                    f"python -X utf8 scripts/mcp_order.py --rate {choice['name']} 分数；"
+                    "或直接回复消息告诉助手你的感受，由助手记录。")
+            send(f"瑞幸下单成功：{choice['name']} ¥{final_price}", body, cfg)
         except Exception:
             pass
         return 0
